@@ -15,8 +15,12 @@ const recurringDay = document.getElementById("recurring-day");
 
 const budgetTotal = document.getElementById("budget-total");
 const spentTotal = document.getElementById("spent-total");
+const committedTotal = document.getElementById("committed-total");
 const remainingTotal = document.getElementById("remaining-total");
+
+const transactionCount = document.getElementById("transaction-count");
 const recurringCount = document.getElementById("recurring-count");
+const largestExpense = document.getElementById("largest-expense");
 
 const expenseList = document.getElementById("expense-list");
 const recurringList = document.getElementById("recurring-list");
@@ -38,18 +42,67 @@ function formatMoney(value) {
   return Number(value).toFixed(2);
 }
 
-function calculateSpent() {
-  return expenses.reduce((sum, item) => sum + Number(item.amount), 0);
+function getCurrentYearMonth() {
+  const today = new Date();
+  return {
+    year: today.getFullYear(),
+    month: today.getMonth()
+  };
+}
+
+function isExpenseInCurrentMonth(expense) {
+  const expenseDate = new Date(`${expense.date}T00:00:00`);
+  const now = getCurrentYearMonth();
+
+  return (
+    expenseDate.getFullYear() === now.year &&
+    expenseDate.getMonth() === now.month
+  );
+}
+
+function getCurrentMonthExpenses() {
+  return expenses.filter(isExpenseInCurrentMonth);
+}
+
+function calculateActualSpent() {
+  return getCurrentMonthExpenses().reduce((sum, item) => sum + Number(item.amount), 0);
+}
+
+function calculateRecurringCommitments() {
+  return recurringBills.reduce((sum, bill) => sum + Number(bill.amount), 0);
+}
+
+function calculateRemaining() {
+  return monthlyBudget - calculateActualSpent() - calculateRecurringCommitments();
+}
+
+function getLargestExpenseAmount() {
+  const currentMonthExpenses = getCurrentMonthExpenses();
+  if (currentMonthExpenses.length === 0) return 0;
+
+  return Math.max(...currentMonthExpenses.map((expense) => Number(expense.amount)));
 }
 
 function updateSummary() {
-  const spent = calculateSpent();
-  const remaining = monthlyBudget - spent;
+  const actualSpent = calculateActualSpent();
+  const committed = calculateRecurringCommitments();
+  const remaining = calculateRemaining();
 
   budgetTotal.textContent = formatMoney(monthlyBudget);
-  spentTotal.textContent = formatMoney(spent);
+  spentTotal.textContent = formatMoney(actualSpent);
+  committedTotal.textContent = formatMoney(committed);
   remainingTotal.textContent = formatMoney(remaining);
+
   recurringCount.textContent = recurringBills.length;
+  transactionCount.textContent = getCurrentMonthExpenses().length;
+  largestExpense.textContent = `$${formatMoney(getLargestExpenseAmount())}`;
+
+  remainingTotal.parentElement.classList.remove("negative", "positive");
+  if (remaining < 0) {
+    remainingTotal.parentElement.classList.add("negative");
+  } else {
+    remainingTotal.parentElement.classList.add("positive");
+  }
 }
 
 function createEmptyMessage(text) {
@@ -62,14 +115,16 @@ function createEmptyMessage(text) {
 function renderExpenses() {
   expenseList.innerHTML = "";
 
-  if (expenses.length === 0) {
-    expenseList.appendChild(createEmptyMessage("No expenses added yet."));
+  const currentMonthExpenses = [...getCurrentMonthExpenses()].sort(
+    (a, b) => new Date(`${b.date}T00:00:00`) - new Date(`${a.date}T00:00:00`)
+  );
+
+  if (currentMonthExpenses.length === 0) {
+    expenseList.appendChild(createEmptyMessage("No expenses posted for this month yet."));
     return;
   }
 
-  const sortedExpenses = [...expenses].sort((a, b) => new Date(b.date) - new Date(a.date));
-
-  sortedExpenses.forEach((expense) => {
+  currentMonthExpenses.forEach((expense) => {
     const li = document.createElement("li");
 
     const main = document.createElement("div");
@@ -81,7 +136,7 @@ function renderExpenses() {
 
     const meta = document.createElement("div");
     meta.className = "item-meta";
-    meta.textContent = `${expense.category} • ${expense.date}${expense.isRecurring ? " • Recurring bill" : ""}`;
+    meta.textContent = `${expense.category} • ${expense.date}${expense.isRecurring ? " • Auto-posted recurring bill" : ""}`;
 
     main.appendChild(title);
     main.appendChild(meta);
@@ -119,54 +174,55 @@ function renderRecurringBills() {
     return;
   }
 
-  recurringBills
-    .sort((a, b) => a.day - b.day)
-    .forEach((bill) => {
-      const li = document.createElement("li");
+  const sortedBills = [...recurringBills].sort((a, b) => a.day - b.day);
 
-      const main = document.createElement("div");
-      main.className = "item-main";
+  sortedBills.forEach((bill) => {
+    const li = document.createElement("li");
 
-      const title = document.createElement("div");
-      title.className = "item-title";
-      title.textContent = bill.name;
+    const main = document.createElement("div");
+    main.className = "item-main";
 
-      const meta = document.createElement("div");
-      meta.className = "item-meta";
-      meta.textContent = `${bill.category} • Due every month on day ${bill.day}`;
+    const title = document.createElement("div");
+    title.className = "item-title";
+    title.textContent = bill.name;
 
-      main.appendChild(title);
-      main.appendChild(meta);
+    const meta = document.createElement("div");
+    meta.className = "item-meta";
+    meta.textContent = `${bill.category} • Due every month on day ${bill.day} • Counts toward remaining immediately`;
 
-      const right = document.createElement("div");
-      right.className = "item-right";
+    main.appendChild(title);
+    main.appendChild(meta);
 
-      const amount = document.createElement("span");
-      amount.className = "amount-pill";
-      amount.textContent = `$${formatMoney(bill.amount)}`;
+    const right = document.createElement("div");
+    right.className = "item-right";
 
-      const deleteBtn = document.createElement("button");
-      deleteBtn.className = "small-btn delete-btn";
-      deleteBtn.textContent = "Delete";
-      deleteBtn.addEventListener("click", () => {
-        recurringBills = recurringBills.filter((item) => item.id !== bill.id);
-        saveData();
-        renderAll();
-      });
+    const amount = document.createElement("span");
+    amount.className = "commitment-pill";
+    amount.textContent = `$${formatMoney(bill.amount)}`;
 
-      right.appendChild(amount);
-      right.appendChild(deleteBtn);
-
-      li.appendChild(main);
-      li.appendChild(right);
-      recurringList.appendChild(li);
+    const deleteBtn = document.createElement("button");
+    deleteBtn.className = "small-btn delete-btn";
+    deleteBtn.textContent = "Delete";
+    deleteBtn.addEventListener("click", () => {
+      recurringBills = recurringBills.filter((item) => item.id !== bill.id);
+      saveData();
+      renderAll();
     });
+
+    right.appendChild(amount);
+    right.appendChild(deleteBtn);
+
+    li.appendChild(main);
+    li.appendChild(right);
+    recurringList.appendChild(li);
+  });
 }
 
 function getCategoryTotals() {
   const totals = {};
+  const currentMonthExpenses = getCurrentMonthExpenses();
 
-  expenses.forEach((expense) => {
+  currentMonthExpenses.forEach((expense) => {
     const category = expense.category || "Other";
     totals[category] = (totals[category] || 0) + Number(expense.amount);
   });
@@ -189,14 +245,18 @@ function renderChart() {
     categoryChart = new Chart(ctx, {
       type: "doughnut",
       data: {
-        labels: ["No Data"],
+        labels: ["No Expenses Yet"],
         datasets: [
           {
-            data: [1]
+            data: [1],
+            backgroundColor: ["rgba(203, 213, 225, 0.8)"],
+            borderWidth: 0
           }
         ]
       },
       options: {
+        responsive: true,
+        maintainAspectRatio: false,
         plugins: {
           legend: {
             position: "bottom"
@@ -215,6 +275,18 @@ function renderChart() {
       datasets: [
         {
           data: values,
+          backgroundColor: [
+            "#2563eb",
+            "#7c3aed",
+            "#14b8a6",
+            "#f59e0b",
+            "#ef4444",
+            "#06b6d4",
+            "#8b5cf6",
+            "#22c55e",
+            "#f97316",
+            "#e11d48"
+          ],
           borderWidth: 0,
           hoverOffset: 8
         }
@@ -233,39 +305,35 @@ function renderChart() {
   });
 }
 
-function getTodayParts() {
-  const today = new Date();
-  return {
-    year: today.getFullYear(),
-    month: today.getMonth(),
-    day: today.getDate()
-  };
-}
-
 function processRecurringBills() {
-  const today = getTodayParts();
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth();
 
   recurringBills.forEach((bill) => {
-    const lastProcessed = bill.lastProcessed ? new Date(bill.lastProcessed) : null;
+    const alreadyPostedThisMonth = expenses.some((expense) => {
+      if (!expense.isRecurring || expense.sourceRecurringId !== bill.id) return false;
 
-    const alreadyProcessedThisMonth =
-      lastProcessed &&
-      lastProcessed.getFullYear() === today.year &&
-      lastProcessed.getMonth() === today.month;
+      const expenseDate = new Date(`${expense.date}T00:00:00`);
+      return (
+        expenseDate.getFullYear() === currentYear &&
+        expenseDate.getMonth() === currentMonth
+      );
+    });
 
-    if (!alreadyProcessedThisMonth && today.day >= Number(bill.day)) {
-      const expenseDateString = `${today.year}-${String(today.month + 1).padStart(2, "0")}-${String(bill.day).padStart(2, "0")}`;
+    if (!alreadyPostedThisMonth && today.getDate() >= Number(bill.day)) {
+      const safeDay = Math.min(Number(bill.day), new Date(currentYear, currentMonth + 1, 0).getDate());
+      const expenseDateString = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(safeDay).padStart(2, "0")}`;
 
       expenses.push({
         id: crypto.randomUUID(),
+        sourceRecurringId: bill.id,
         name: bill.name,
         amount: Number(bill.amount),
         category: bill.category,
         date: expenseDateString,
         isRecurring: true
       });
-
-      bill.lastProcessed = new Date(today.year, today.month, today.day).toISOString();
     }
   });
 
@@ -283,7 +351,7 @@ budgetForm.addEventListener("submit", (e) => {
   e.preventDefault();
   monthlyBudget = Number(budgetInput.value);
   saveData();
-  updateSummary();
+  renderAll();
   budgetForm.reset();
 });
 
@@ -312,8 +380,7 @@ recurringForm.addEventListener("submit", (e) => {
     name: recurringName.value.trim(),
     amount: Number(recurringAmount.value),
     category: recurringCategory.value,
-    day: Number(recurringDay.value),
-    lastProcessed: null
+    day: Number(recurringDay.value)
   });
 
   saveData();
