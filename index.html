@@ -1,336 +1,195 @@
-const budgetForm = document.getElementById("budget-form");
-const budgetInput = document.getElementById("budget-input");
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Budget Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="bg-orb orb-1"></div>
+  <div class="bg-orb orb-2"></div>
+  <div class="bg-orb orb-3"></div>
 
-const expenseForm = document.getElementById("expense-form");
-const expenseName = document.getElementById("expense-name");
-const expenseAmount = document.getElementById("expense-amount");
-const expenseCategory = document.getElementById("expense-category");
-const expenseDate = document.getElementById("expense-date");
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon">💰</div>
+        <div>
+          <h1>BudgetFlow</h1>
+          <p>Personal budgeting dashboard</p>
+        </div>
+      </div>
 
-const recurringForm = document.getElementById("recurring-form");
-const recurringName = document.getElementById("recurring-name");
-const recurringAmount = document.getElementById("recurring-amount");
-const recurringCategory = document.getElementById("recurring-category");
-const recurringDay = document.getElementById("recurring-day");
+      <nav class="side-nav">
+        <a href="#overview">Overview</a>
+        <a href="#transactions">Transactions</a>
+        <a href="#recurring">Recurring Bills</a>
+        <a href="#history">History</a>
+      </nav>
 
-const budgetTotal = document.getElementById("budget-total");
-const spentTotal = document.getElementById("spent-total");
-const remainingTotal = document.getElementById("remaining-total");
-const recurringCount = document.getElementById("recurring-count");
+      <div class="sidebar-note">
+        <h3>How remaining works</h3>
+        <p>
+          Remaining now subtracts both your current spending and your recurring monthly bills,
+          so you can see the true amount you still have left.
+        </p>
+      </div>
+    </aside>
 
-const expenseList = document.getElementById("expense-list");
-const recurringList = document.getElementById("recurring-list");
-const clearAllBtn = document.getElementById("clear-all-btn");
+    <main class="main-content">
+      <section class="hero panel" id="overview">
+        <div class="hero-copy">
+          <p class="eyebrow">Monthly planning</p>
+          <h2>See what you’ve spent, what’s already committed, and what’s truly left.</h2>
+          <p class="hero-text">
+            Recurring bills affect your remaining balance immediately, so your budget reflects reality from the start.
+          </p>
+        </div>
 
-let monthlyBudget = Number(localStorage.getItem("monthlyBudget")) || 0;
-let expenses = JSON.parse(localStorage.getItem("expenses")) || [];
-let recurringBills = JSON.parse(localStorage.getItem("recurringBills")) || [];
+        <form id="budget-form" class="budget-form">
+          <label for="budget-input">Set Monthly Budget</label>
+          <div class="budget-row">
+            <input type="number" id="budget-input" placeholder="Enter monthly budget" min="0" step="0.01" required />
+            <button type="submit">Save Budget</button>
+          </div>
+        </form>
+      </section>
 
-let categoryChart = null;
+      <section class="summary-grid">
+        <div class="stat-card">
+          <span class="stat-label">Monthly Budget</span>
+          <span class="stat-value">$<span id="budget-total">0.00</span></span>
+        </div>
 
-function saveData() {
-  localStorage.setItem("monthlyBudget", monthlyBudget);
-  localStorage.setItem("expenses", JSON.stringify(expenses));
-  localStorage.setItem("recurringBills", JSON.stringify(recurringBills));
-}
+        <div class="stat-card">
+          <span class="stat-label">Actual Spent</span>
+          <span class="stat-value">$<span id="spent-total">0.00</span></span>
+        </div>
 
-function formatMoney(value) {
-  return Number(value).toFixed(2);
-}
+        <div class="stat-card">
+          <span class="stat-label">Recurring Commitments</span>
+          <span class="stat-value">$<span id="committed-total">0.00</span></span>
+        </div>
 
-function calculateSpent() {
-  return expenses.reduce((sum, item) => sum + Number(item.amount), 0);
-}
+        <div class="stat-card highlight-card">
+          <span class="stat-label">Remaining</span>
+          <span class="stat-value">$<span id="remaining-total">0.00</span></span>
+        </div>
+      </section>
 
-function updateSummary() {
-  const spent = calculateSpent();
-  const remaining = monthlyBudget - spent;
+      <section class="insight-grid">
+        <div class="mini-card">
+          <span class="mini-label">Total Transactions</span>
+          <span class="mini-value" id="transaction-count">0</span>
+        </div>
+        <div class="mini-card">
+          <span class="mini-label">Recurring Bills</span>
+          <span class="mini-value" id="recurring-count">0</span>
+        </div>
+        <div class="mini-card">
+          <span class="mini-label">Largest Expense</span>
+          <span class="mini-value" id="largest-expense">$0.00</span>
+        </div>
+      </section>
 
-  budgetTotal.textContent = formatMoney(monthlyBudget);
-  spentTotal.textContent = formatMoney(spent);
-  remainingTotal.textContent = formatMoney(remaining);
-  recurringCount.textContent = recurringBills.length;
-}
+      <section class="content-grid" id="transactions">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>Add Expense</h3>
+            <p>Track one-time purchases, food, gas, shopping, and more.</p>
+          </div>
 
-function createEmptyMessage(text) {
-  const li = document.createElement("li");
-  li.className = "empty-state";
-  li.textContent = text;
-  return li;
-}
+          <form id="expense-form" class="form-grid">
+            <input type="text" id="expense-name" placeholder="Expense name" required />
+            <input type="number" id="expense-amount" placeholder="Amount" min="0" step="0.01" required />
 
-function renderExpenses() {
-  expenseList.innerHTML = "";
+            <select id="expense-category" required>
+              <option value="">Select category</option>
+              <option value="Housing">Housing</option>
+              <option value="Utilities">Utilities</option>
+              <option value="Food">Food</option>
+              <option value="Gas">Gas</option>
+              <option value="Insurance">Insurance</option>
+              <option value="Debt">Debt</option>
+              <option value="Shopping">Shopping</option>
+              <option value="Entertainment">Entertainment</option>
+              <option value="Health">Health</option>
+              <option value="Subscriptions">Subscriptions</option>
+              <option value="Other">Other</option>
+            </select>
 
-  if (expenses.length === 0) {
-    expenseList.appendChild(createEmptyMessage("No expenses added yet."));
-    return;
-  }
+            <input type="date" id="expense-date" required />
+            <button type="submit" class="primary-btn full-width">Add Expense</button>
+          </form>
+        </div>
 
-  const sortedExpenses = [...expenses].sort((a, b) => new Date(b.date) - new Date(a.date));
+        <div class="panel chart-panel">
+          <div class="panel-header">
+            <h3>Spending by Category</h3>
+            <p>Visual breakdown of your posted expenses.</p>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="categoryChart"></canvas>
+          </div>
+        </div>
+      </section>
 
-  sortedExpenses.forEach((expense) => {
-    const li = document.createElement("li");
+      <section class="content-grid" id="recurring">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>Add Recurring Bill</h3>
+            <p>Add monthly bills that should always count toward your remaining balance.</p>
+          </div>
 
-    const main = document.createElement("div");
-    main.className = "item-main";
+          <form id="recurring-form" class="form-grid">
+            <input type="text" id="recurring-name" placeholder="Bill name" required />
+            <input type="number" id="recurring-amount" placeholder="Amount" min="0" step="0.01" required />
 
-    const title = document.createElement("div");
-    title.className = "item-title";
-    title.textContent = expense.name;
+            <select id="recurring-category" required>
+              <option value="">Select category</option>
+              <option value="Housing">Housing</option>
+              <option value="Utilities">Utilities</option>
+              <option value="Insurance">Insurance</option>
+              <option value="Debt">Debt</option>
+              <option value="Subscriptions">Subscriptions</option>
+              <option value="Health">Health</option>
+              <option value="Other">Other</option>
+            </select>
 
-    const meta = document.createElement("div");
-    meta.className = "item-meta";
-    meta.textContent = `${expense.category} • ${expense.date}${expense.isRecurring ? " • Recurring bill" : ""}`;
+            <input type="number" id="recurring-day" placeholder="Day of month (1-31)" min="1" max="31" required />
+            <button type="submit" class="primary-btn full-width">Add Recurring Bill</button>
+          </form>
+        </div>
 
-    main.appendChild(title);
-    main.appendChild(meta);
+        <div class="panel">
+          <div class="panel-header">
+            <h3>Recurring Bills</h3>
+            <p>These count against your remaining amount immediately.</p>
+          </div>
+          <ul id="recurring-list" class="styled-list"></ul>
+        </div>
+      </section>
 
-    const right = document.createElement("div");
-    right.className = "item-right";
+      <section class="panel" id="history">
+        <div class="panel-header">
+          <h3>Expense History</h3>
+          <p>Saved in your browser and kept after closing the site.</p>
+        </div>
 
-    const amount = document.createElement("span");
-    amount.className = "amount-pill";
-    amount.textContent = `$${formatMoney(expense.amount)}`;
+        <ul id="expense-list" class="styled-list"></ul>
 
-    const deleteBtn = document.createElement("button");
-    deleteBtn.className = "small-btn delete-btn";
-    deleteBtn.textContent = "Delete";
-    deleteBtn.addEventListener("click", () => {
-      expenses = expenses.filter((item) => item.id !== expense.id);
-      saveData();
-      renderAll();
-    });
+        <div class="danger-zone">
+          <button id="clear-all-btn" class="danger-btn">Clear All Data</button>
+        </div>
+      </section>
+    </main>
+  </div>
 
-    right.appendChild(amount);
-    right.appendChild(deleteBtn);
-
-    li.appendChild(main);
-    li.appendChild(right);
-    expenseList.appendChild(li);
-  });
-}
-
-function renderRecurringBills() {
-  recurringList.innerHTML = "";
-
-  if (recurringBills.length === 0) {
-    recurringList.appendChild(createEmptyMessage("No recurring bills added yet."));
-    return;
-  }
-
-  recurringBills
-    .sort((a, b) => a.day - b.day)
-    .forEach((bill) => {
-      const li = document.createElement("li");
-
-      const main = document.createElement("div");
-      main.className = "item-main";
-
-      const title = document.createElement("div");
-      title.className = "item-title";
-      title.textContent = bill.name;
-
-      const meta = document.createElement("div");
-      meta.className = "item-meta";
-      meta.textContent = `${bill.category} • Due every month on day ${bill.day}`;
-
-      main.appendChild(title);
-      main.appendChild(meta);
-
-      const right = document.createElement("div");
-      right.className = "item-right";
-
-      const amount = document.createElement("span");
-      amount.className = "amount-pill";
-      amount.textContent = `$${formatMoney(bill.amount)}`;
-
-      const deleteBtn = document.createElement("button");
-      deleteBtn.className = "small-btn delete-btn";
-      deleteBtn.textContent = "Delete";
-      deleteBtn.addEventListener("click", () => {
-        recurringBills = recurringBills.filter((item) => item.id !== bill.id);
-        saveData();
-        renderAll();
-      });
-
-      right.appendChild(amount);
-      right.appendChild(deleteBtn);
-
-      li.appendChild(main);
-      li.appendChild(right);
-      recurringList.appendChild(li);
-    });
-}
-
-function getCategoryTotals() {
-  const totals = {};
-
-  expenses.forEach((expense) => {
-    const category = expense.category || "Other";
-    totals[category] = (totals[category] || 0) + Number(expense.amount);
-  });
-
-  return totals;
-}
-
-function renderChart() {
-  const categoryTotals = getCategoryTotals();
-  const labels = Object.keys(categoryTotals);
-  const values = Object.values(categoryTotals);
-  const canvas = document.getElementById("categoryChart");
-  const ctx = canvas.getContext("2d");
-
-  if (categoryChart) {
-    categoryChart.destroy();
-  }
-
-  if (labels.length === 0) {
-    categoryChart = new Chart(ctx, {
-      type: "doughnut",
-      data: {
-        labels: ["No Data"],
-        datasets: [
-          {
-            data: [1]
-          }
-        ]
-      },
-      options: {
-        plugins: {
-          legend: {
-            position: "bottom"
-          }
-        },
-        cutout: "68%"
-      }
-    });
-    return;
-  }
-
-  categoryChart = new Chart(ctx, {
-    type: "doughnut",
-    data: {
-      labels,
-      datasets: [
-        {
-          data: values,
-          borderWidth: 0,
-          hoverOffset: 8
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          position: "bottom"
-        }
-      },
-      cutout: "68%"
-    }
-  });
-}
-
-function getTodayParts() {
-  const today = new Date();
-  return {
-    year: today.getFullYear(),
-    month: today.getMonth(),
-    day: today.getDate()
-  };
-}
-
-function processRecurringBills() {
-  const today = getTodayParts();
-
-  recurringBills.forEach((bill) => {
-    const lastProcessed = bill.lastProcessed ? new Date(bill.lastProcessed) : null;
-
-    const alreadyProcessedThisMonth =
-      lastProcessed &&
-      lastProcessed.getFullYear() === today.year &&
-      lastProcessed.getMonth() === today.month;
-
-    if (!alreadyProcessedThisMonth && today.day >= Number(bill.day)) {
-      const expenseDateString = `${today.year}-${String(today.month + 1).padStart(2, "0")}-${String(bill.day).padStart(2, "0")}`;
-
-      expenses.push({
-        id: crypto.randomUUID(),
-        name: bill.name,
-        amount: Number(bill.amount),
-        category: bill.category,
-        date: expenseDateString,
-        isRecurring: true
-      });
-
-      bill.lastProcessed = new Date(today.year, today.month, today.day).toISOString();
-    }
-  });
-
-  saveData();
-}
-
-function renderAll() {
-  updateSummary();
-  renderExpenses();
-  renderRecurringBills();
-  renderChart();
-}
-
-budgetForm.addEventListener("submit", (e) => {
-  e.preventDefault();
-  monthlyBudget = Number(budgetInput.value);
-  saveData();
-  updateSummary();
-  budgetForm.reset();
-});
-
-expenseForm.addEventListener("submit", (e) => {
-  e.preventDefault();
-
-  expenses.push({
-    id: crypto.randomUUID(),
-    name: expenseName.value.trim(),
-    amount: Number(expenseAmount.value),
-    category: expenseCategory.value,
-    date: expenseDate.value,
-    isRecurring: false
-  });
-
-  saveData();
-  renderAll();
-  expenseForm.reset();
-});
-
-recurringForm.addEventListener("submit", (e) => {
-  e.preventDefault();
-
-  recurringBills.push({
-    id: crypto.randomUUID(),
-    name: recurringName.value.trim(),
-    amount: Number(recurringAmount.value),
-    category: recurringCategory.value,
-    day: Number(recurringDay.value),
-    lastProcessed: null
-  });
-
-  saveData();
-  renderAll();
-  recurringForm.reset();
-});
-
-clearAllBtn.addEventListener("click", () => {
-  const confirmed = confirm("Are you sure you want to delete all budgets, expenses, and recurring bills?");
-  if (!confirmed) return;
-
-  monthlyBudget = 0;
-  expenses = [];
-  recurringBills = [];
-  saveData();
-  renderAll();
-});
-
-processRecurringBills();
-renderAll();
+  <script src="script.js"></script>
+</body>
+</html>
