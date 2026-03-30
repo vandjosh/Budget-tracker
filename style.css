@@ -1,195 +1,370 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Budget Tracker</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-</head>
-<body>
-  <div class="bg-orb orb-1"></div>
-  <div class="bg-orb orb-2"></div>
-  <div class="bg-orb orb-3"></div>
+:root {
+  --bg: #0f172a;
+  --panel: rgba(255, 255, 255, 0.82);
+  --panel-strong: rgba(255, 255, 255, 0.92);
+  --text: #0f172a;
+  --muted: #64748b;
+  --line: rgba(148, 163, 184, 0.22);
+  --accent: #2563eb;
+  --accent-2: #7c3aed;
+  --success: #059669;
+  --danger: #dc2626;
+  --shadow: 0 18px 50px rgba(15, 23, 42, 0.16);
+  --radius: 22px;
+}
 
-  <div class="app-shell">
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="brand-icon">💰</div>
-        <div>
-          <h1>BudgetFlow</h1>
-          <p>Personal budgeting dashboard</p>
-        </div>
-      </div>
+* {
+  box-sizing: border-box;
+}
 
-      <nav class="side-nav">
-        <a href="#overview">Overview</a>
-        <a href="#transactions">Transactions</a>
-        <a href="#recurring">Recurring Bills</a>
-        <a href="#history">History</a>
-      </nav>
+html {
+  scroll-behavior: smooth;
+}
 
-      <div class="sidebar-note">
-        <h3>How remaining works</h3>
-        <p>
-          Remaining now subtracts both your current spending and your recurring monthly bills,
-          so you can see the true amount you still have left.
-        </p>
-      </div>
-    </aside>
+body {
+  margin: 0;
+  font-family: "Inter", sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at top left, rgba(124, 58, 237, 0.35), transparent 30%),
+    radial-gradient(circle at top right, rgba(37, 99, 235, 0.35), transparent 28%),
+    linear-gradient(135deg, #0f172a 0%, #111827 50%, #1e293b 100%);
+  min-height: 100vh;
+}
 
-    <main class="main-content">
-      <section class="hero panel" id="overview">
-        <div class="hero-copy">
-          <p class="eyebrow">Monthly planning</p>
-          <h2>See what you’ve spent, what’s already committed, and what’s truly left.</h2>
-          <p class="hero-text">
-            Recurring bills affect your remaining balance immediately, so your budget reflects reality from the start.
-          </p>
-        </div>
+.app-shell {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  min-height: 100vh;
+}
 
-        <form id="budget-form" class="budget-form">
-          <label for="budget-input">Set Monthly Budget</label>
-          <div class="budget-row">
-            <input type="number" id="budget-input" placeholder="Enter monthly budget" min="0" step="0.01" required />
-            <button type="submit">Save Budget</button>
-          </div>
-        </form>
-      </section>
+.sidebar {
+  padding: 28px 20px;
+  border-right: 1px solid rgba(255,255,255,0.08);
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(10px);
+  color: white;
+}
 
-      <section class="summary-grid">
-        <div class="stat-card">
-          <span class="stat-label">Monthly Budget</span>
-          <span class="stat-value">$<span id="budget-total">0.00</span></span>
-        </div>
+.brand {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  margin-bottom: 34px;
+}
 
-        <div class="stat-card">
-          <span class="stat-label">Actual Spent</span>
-          <span class="stat-value">$<span id="spent-total">0.00</span></span>
-        </div>
+.brand-icon {
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  font-size: 24px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.35);
+}
 
-        <div class="stat-card">
-          <span class="stat-label">Recurring Commitments</span>
-          <span class="stat-value">$<span id="committed-total">0.00</span></span>
-        </div>
+.brand h1 {
+  margin: 0;
+  font-size: 20px;
+}
 
-        <div class="stat-card highlight-card">
-          <span class="stat-label">Remaining</span>
-          <span class="stat-value">$<span id="remaining-total">0.00</span></span>
-        </div>
-      </section>
+.brand p {
+  margin: 4px 0 0;
+  color: rgba(255,255,255,0.72);
+  font-size: 13px;
+}
 
-      <section class="insight-grid">
-        <div class="mini-card">
-          <span class="mini-label">Total Transactions</span>
-          <span class="mini-value" id="transaction-count">0</span>
-        </div>
-        <div class="mini-card">
-          <span class="mini-label">Recurring Bills</span>
-          <span class="mini-value" id="recurring-count">0</span>
-        </div>
-        <div class="mini-card">
-          <span class="mini-label">Largest Expense</span>
-          <span class="mini-value" id="largest-expense">$0.00</span>
-        </div>
-      </section>
+.side-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
 
-      <section class="content-grid" id="transactions">
-        <div class="panel">
-          <div class="panel-header">
-            <h3>Add Expense</h3>
-            <p>Track one-time purchases, food, gas, shopping, and more.</p>
-          </div>
+.side-nav a {
+  text-decoration: none;
+  color: rgba(255,255,255,0.88);
+  padding: 12px 14px;
+  border-radius: 14px;
+  transition: 0.2s ease;
+  background: rgba(255,255,255,0.04);
+}
 
-          <form id="expense-form" class="form-grid">
-            <input type="text" id="expense-name" placeholder="Expense name" required />
-            <input type="number" id="expense-amount" placeholder="Amount" min="0" step="0.01" required />
+.side-nav a:hover {
+  background: rgba(255,255,255,0.1);
+  transform: translateX(2px);
+}
 
-            <select id="expense-category" required>
-              <option value="">Select category</option>
-              <option value="Housing">Housing</option>
-              <option value="Utilities">Utilities</option>
-              <option value="Food">Food</option>
-              <option value="Gas">Gas</option>
-              <option value="Insurance">Insurance</option>
-              <option value="Debt">Debt</option>
-              <option value="Shopping">Shopping</option>
-              <option value="Entertainment">Entertainment</option>
-              <option value="Health">Health</option>
-              <option value="Subscriptions">Subscriptions</option>
-              <option value="Other">Other</option>
-            </select>
+.main-content {
+  padding: 28px;
+}
 
-            <input type="date" id="expense-date" required />
-            <button type="submit" class="primary-btn full-width">Add Expense</button>
-          </form>
-        </div>
+.hero {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: center;
+  margin-bottom: 22px;
+  background: var(--panel);
+  backdrop-filter: blur(18px);
+  border: 1px solid rgba(255,255,255,0.24);
+  border-radius: var(--radius);
+  padding: 28px;
+  box-shadow: var(--shadow);
+}
 
-        <div class="panel chart-panel">
-          <div class="panel-header">
-            <h3>Spending by Category</h3>
-            <p>Visual breakdown of your posted expenses.</p>
-          </div>
-          <div class="chart-wrap">
-            <canvas id="categoryChart"></canvas>
-          </div>
-        </div>
-      </section>
+.eyebrow {
+  margin: 0 0 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 12px;
+  color: var(--accent);
+  font-weight: 700;
+}
 
-      <section class="content-grid" id="recurring">
-        <div class="panel">
-          <div class="panel-header">
-            <h3>Add Recurring Bill</h3>
-            <p>Add monthly bills that should always count toward your remaining balance.</p>
-          </div>
+.hero h2 {
+  margin: 0;
+  font-size: 28px;
+  line-height: 1.25;
+  max-width: 760px;
+}
 
-          <form id="recurring-form" class="form-grid">
-            <input type="text" id="recurring-name" placeholder="Bill name" required />
-            <input type="number" id="recurring-amount" placeholder="Amount" min="0" step="0.01" required />
+.budget-form {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
 
-            <select id="recurring-category" required>
-              <option value="">Select category</option>
-              <option value="Housing">Housing</option>
-              <option value="Utilities">Utilities</option>
-              <option value="Insurance">Insurance</option>
-              <option value="Debt">Debt</option>
-              <option value="Subscriptions">Subscriptions</option>
-              <option value="Health">Health</option>
-              <option value="Other">Other</option>
-            </select>
+.summary-grid,
+.content-grid {
+  display: grid;
+  gap: 18px;
+  margin-bottom: 18px;
+}
 
-            <input type="number" id="recurring-day" placeholder="Day of month (1-31)" min="1" max="31" required />
-            <button type="submit" class="primary-btn full-width">Add Recurring Bill</button>
-          </form>
-        </div>
+.summary-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
 
-        <div class="panel">
-          <div class="panel-header">
-            <h3>Recurring Bills</h3>
-            <p>These count against your remaining amount immediately.</p>
-          </div>
-          <ul id="recurring-list" class="styled-list"></ul>
-        </div>
-      </section>
+.content-grid {
+  grid-template-columns: 1.15fr 1fr;
+}
 
-      <section class="panel" id="history">
-        <div class="panel-header">
-          <h3>Expense History</h3>
-          <p>Saved in your browser and kept after closing the site.</p>
-        </div>
+.stat-card,
+.panel {
+  background: var(--panel);
+  backdrop-filter: blur(18px);
+  border: 1px solid rgba(255,255,255,0.24);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
 
-        <ul id="expense-list" class="styled-list"></ul>
+.stat-card {
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
 
-        <div class="danger-zone">
-          <button id="clear-all-btn" class="danger-btn">Clear All Data</button>
-        </div>
-      </section>
-    </main>
-  </div>
+.stat-label {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
 
-  <script src="script.js"></script>
-</body>
-</html>
+.stat-value {
+  font-size: 30px;
+  font-weight: 800;
+}
+
+.panel {
+  padding: 22px;
+}
+
+.panel-header {
+  margin-bottom: 16px;
+}
+
+.panel-header h3 {
+  margin: 0 0 6px;
+  font-size: 20px;
+}
+
+.panel-header p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+input,
+select,
+button {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 13px 14px;
+  font: inherit;
+}
+
+input,
+select {
+  background: var(--panel-strong);
+  color: var(--text);
+}
+
+button {
+  border: none;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+}
+
+.primary-btn,
+.budget-form button {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: white;
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.26);
+}
+
+.chart-wrap {
+  background: rgba(255,255,255,0.55);
+  border-radius: 18px;
+  padding: 16px;
+  min-height: 340px;
+}
+
+.styled-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.styled-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.item-main {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.item-title {
+  font-weight: 700;
+}
+
+.item-meta {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.item-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.amount-pill {
+  font-weight: 800;
+  background: rgba(37, 99, 235, 0.1);
+  color: var(--accent);
+  padding: 8px 12px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.small-btn {
+  background: #eef2ff;
+  color: #312e81;
+  padding: 10px 12px;
+  border-radius: 12px;
+}
+
+.delete-btn {
+  background: rgba(220, 38, 38, 0.12);
+  color: var(--danger);
+}
+
+.danger-zone {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.danger-btn {
+  width: auto;
+  background: linear-gradient(135deg, #ef4444, #b91c1c);
+  color: white;
+  padding: 12px 18px;
+}
+
+.empty-state {
+  color: var(--muted);
+  padding: 8px 0;
+}
+
+@media (max-width: 1100px) {
+  .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    border-right: none;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+}
+
+@media (max-width: 700px) {
+  .main-content {
+    padding: 16px;
+  }
+
+  .hero {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .hero h2 {
+    font-size: 22px;
+  }
+
+  .summary-grid,
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .styled-list li {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .item-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
