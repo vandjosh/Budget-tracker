@@ -1,17 +1,106 @@
 body {
-    font-family: Arial;
-    max-width: 500px;
-    margin: auto;
-    padding: 20px;
+  font-family: Arial, sans-serif;
+  background: #f4f6f8;
+  margin: 0;
+  padding: 20px;
 }
 
-input, button {
-    margin: 5px 0;
-    padding: 8px;
-    width: 100%;
+.container {
+  max-width: 900px;
+  margin: 0 auto;
 }
 
-li {
-    margin: 5px 0;
-    border-bottom: 1px solid #ccc;
+h1 {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.card {
+  background: white;
+  padding: 20px;
+  margin-bottom: 20px;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+form {
+  display: grid;
+  gap: 10px;
+}
+
+input, select, button {
+  padding: 10px;
+  font-size: 16px;
+  border-radius: 6px;
+}
+
+input, select {
+  border: 1px solid #ccc;
+}
+
+button {
+  border: none;
+  background: #2563eb;
+  color: white;
+  cursor: pointer;
+}
+
+button:hover {
+  opacity: 0.9;
+}
+
+.danger {
+  background: #dc2626;
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.summary-box {
+  background: white;
+  padding: 15px;
+  border-radius: 10px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.summary-box p {
+  font-size: 24px;
+  margin: 10px 0 0;
+  font-weight: bold;
+}
+
+#expense-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+#expense-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  border-bottom: 1px solid #eee;
+  gap: 10px;
+}
+
+.expense-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.expense-meta {
+  font-size: 14px;
+  color: #666;
+}
+
+.delete-btn {
+  background: #ef4444;
+  padding: 8px 12px;
+  font-size: 14px;
 }
