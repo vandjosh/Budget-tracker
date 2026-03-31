@@ -449,10 +449,7 @@ button:hover {
   background: linear-gradient(180deg, rgba(255,255,255,0.82), rgba(241,245,249,0.95));
   border: 1px solid rgba(226, 232, 240, 0.8);
 }
-.chart-wrap canvas {
-  max-width: 240px !important;
-  max-height: 240px !important;
-}
+
   border-radius: 22px;
   background: linear-gradient(180deg, rgba(255,255,255,0.82), rgba(241,245,249,0.95));
   border: 1px solid rgba(226, 232, 240, 0.8);
@@ -609,11 +606,6 @@ button:hover {
   min-height: 360px;
 }
 
-.chart-wrap canvas {
-  width: 100% !important;
-  height: 100% !important;
-}
-
 .list li:hover {
   background: rgba(37, 99, 235, 0.04);
   border-radius: 14px;
@@ -646,4 +638,38 @@ button:hover {
 }
 .card {
   height: auto;
+}
+.chart-wrap {
+  padding: 12px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.82), rgba(241,245,249,0.95));
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.chart-wrap.donut {
+  height: 260px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chart-wrap.donut canvas {
+  width: 240px !important;
+  height: 240px !important;
+  max-width: 240px !important;
+  max-height: 240px !important;
+}
+
+.chart-wrap.trend-wrap {
+  height: 420px;
+  width: 100%;
+  padding: 16px;
+}
+
+.chart-wrap.trend-wrap canvas {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  display: block;
 }
