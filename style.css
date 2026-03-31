@@ -634,11 +634,13 @@ button:hover {
   max-height: 240px !important;
 }
 .chart-wrap.trend-wrap {
-  min-height: 380px;
-  max-height: 420px;
+  height: 420px;       
+  width: 100%;
+  padding: 16px;
 }
 
 .chart-wrap.trend-wrap canvas {
   width: 100% !important;
   height: 100% !important;
+  display: block;
 }
