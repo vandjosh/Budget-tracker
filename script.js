@@ -466,7 +466,143 @@ function renderChart() {
     }
   });
 }
+function renderTrendChart() {
+  const { labels, values } = getDailyTrendData();
+  const ctx = document.getElementById("trendChart").getContext("2d");
 
+  if (trendChart) {
+    trendChart.destroy();
+  }
+
+  if (labels.length === 0) {
+    trendChart = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: ["No Data"],
+        datasets: [
+          {
+            label: "Cumulative Spending",
+            data: [0],
+            borderColor: "#94a3b8",
+            backgroundColor: "rgba(148, 163, 184, 0.15)",
+            pointBackgroundColor: "#94a3b8",
+            pointRadius: 4,
+            tension: 0.35,
+            fill: true
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          mode: "index",
+          intersect: false
+        },
+        plugins: {
+          legend: {
+            display: false
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                return ` $${Number(context.parsed.y).toFixed(2)}`;
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              callback: function(value) {
+                return `$${value}`;
+              }
+            }
+          }
+        }
+      }
+    });
+    return;
+  }
+
+  trendChart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "Cumulative Spending",
+          data: values,
+          borderColor: "#2563eb",
+          backgroundColor: "rgba(37, 99, 235, 0.12)",
+          pointBackgroundColor: "#7c3aed",
+          pointBorderColor: "#ffffff",
+          pointBorderWidth: 2,
+          pointHoverRadius: 7,
+          pointRadius: 5,
+          tension: 0.35,
+          fill: true
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        mode: "index",
+        intersect: false
+      },
+      animation: {
+        duration: 900
+      },
+      plugins: {
+        legend: {
+          display: false
+        },
+        tooltip: {
+          backgroundColor: "rgba(15, 23, 42, 0.92)",
+          padding: 12,
+          displayColors: false,
+          callbacks: {
+            title: function(context) {
+              return `Day ${context[0].label}`;
+            },
+            label: function(context) {
+              return `Cumulative spent: $${Number(context.parsed.y).toFixed(2)}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          title: {
+            display: true,
+            text: "Day of Month"
+          },
+          grid: {
+            color: "rgba(148, 163, 184, 0.12)"
+          }
+        },
+        y: {
+          beginAtZero: true,
+          title: {
+            display: true,
+            text: "Total Spent"
+          },
+          ticks: {
+            callback: function(value) {
+              return `$${value}`;
+            }
+          },
+          grid: {
+            color: "rgba(148, 163, 184, 0.12)"
+          }
+        }
+      }
+    }
+  });
+}
 function processRecurringBills() {
   const today = new Date();
   const currentMonthKey = getCurrentMonthKey();
@@ -503,6 +639,7 @@ function renderAll() {
   renderExpenses();
   renderRecurringBills();
   renderChart();
+  renderTrendChart();
 }
 
 budgetForm.addEventListener("submit", (e) => {
