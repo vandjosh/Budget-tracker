@@ -444,8 +444,17 @@ button:hover {
 }
 
 .chart-wrap {
-  min-height: 340px;
-  padding: 18px;
+  min-height: 260px;
+  max-height: 260px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.chart-wrap canvas {
+  max-width: 240px !important;
+  max-height: 240px !important;
+}
   border-radius: 22px;
   background: linear-gradient(180deg, rgba(255,255,255,0.82), rgba(241,245,249,0.95));
   border: 1px solid rgba(226, 232, 240, 0.8);
