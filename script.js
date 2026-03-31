@@ -731,3 +731,10 @@ rolloverIfNeeded();
 processRecurringBills();
 renderAll();
 resetRecurringForm();
+elements: {
+  line: {
+    borderWidth: 3
+  }
+}
+pointRadius: 0,
+pointHoverRadius: 6,
