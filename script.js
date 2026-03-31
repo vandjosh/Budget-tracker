@@ -14,9 +14,20 @@ const recurringCategory = document.getElementById("recurring-category");
 const recurringDay = document.getElementById("recurring-day");
 
 const budgetTotal = document.getElementById("budget-total");
+const rolloverTotal = document.getElementById("rollover-total");
 const spentTotal = document.getElementById("spent-total");
+const committedTotal = document.getElementById("committed-total");
 const remainingTotal = document.getElementById("remaining-total");
+const availableTotal = document.getElementById("available-total");
+
+const transactionCount = document.getElementById("transaction-count");
 const recurringCount = document.getElementById("recurring-count");
+const largestExpense = document.getElementById("largest-expense");
+const monthLabel = document.getElementById("month-label");
+
+const progressFill = document.getElementById("progress-fill");
+const progressText = document.getElementById("progress-text");
+const statusBadge = document.getElementById("status-badge");
 
 const expenseList = document.getElementById("expense-list");
 const recurringList = document.getElementById("recurring-list");
@@ -25,6 +36,8 @@ const clearAllBtn = document.getElementById("clear-all-btn");
 let monthlyBudget = Number(localStorage.getItem("monthlyBudget")) || 0;
 let expenses = JSON.parse(localStorage.getItem("expenses")) || [];
 let recurringBills = JSON.parse(localStorage.getItem("recurringBills")) || [];
+let rolloverAmount = Number(localStorage.getItem("rolloverAmount")) || 0;
+let lastActiveMonth = localStorage.getItem("lastActiveMonth") || getMonthKey(new Date());
 
 let categoryChart = null;
 
@@ -32,51 +45,144 @@ function saveData() {
   localStorage.setItem("monthlyBudget", monthlyBudget);
   localStorage.setItem("expenses", JSON.stringify(expenses));
   localStorage.setItem("recurringBills", JSON.stringify(recurringBills));
+  localStorage.setItem("rolloverAmount", rolloverAmount);
+  localStorage.setItem("lastActiveMonth", lastActiveMonth);
 }
 
 function formatMoney(value) {
   return Number(value).toFixed(2);
 }
 
-function getCurrentYearMonth() {
-  const today = new Date();
-  return {
-    year: today.getFullYear(),
-    month: today.getMonth()
-  };
+function getMonthKey(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
 }
 
-function isExpenseInCurrentMonth(expense) {
-  const expenseDate = new Date(`${expense.date}T00:00:00`);
-  const now = getCurrentYearMonth();
-
-  return (
-    expenseDate.getFullYear() === now.year &&
-    expenseDate.getMonth() === now.month
-  );
+function getReadableMonth(date) {
+  return date.toLocaleString("en-US", {
+    month: "long",
+    year: "numeric"
+  });
 }
 
-function getCurrentMonthExpenses() {
-  return expenses.filter(isExpenseInCurrentMonth);
+function getCurrentMonthKey() {
+  return getMonthKey(new Date());
 }
 
-function calculateSpent() {
-  return getCurrentMonthExpenses().reduce((sum, item) => sum + Number(item.amount), 0);
+function getPreviousMonthKey(monthKey) {
+  const [year, month] = monthKey.split("-").map(Number);
+  const date = new Date(year, month - 2, 1);
+  return getMonthKey(date);
+}
+
+function isExpenseInMonth(expense, monthKey) {
+  return typeof expense.date === "string" && expense.date.startsWith(monthKey);
+}
+
+function getExpensesForMonth(monthKey) {
+  return expenses.filter((expense) => isExpenseInMonth(expense, monthKey));
+}
+
+function calculateSpentForMonth(monthKey) {
+  return getExpensesForMonth(monthKey).reduce((sum, expense) => {
+    return sum + Number(expense.amount);
+  }, 0);
 }
 
 function calculateRecurringCommitments() {
   return recurringBills.reduce((sum, bill) => sum + Number(bill.amount), 0);
 }
 
-function updateSummary() {
-  const spent = calculateSpent();
-  const commitments = calculateRecurringCommitments();
-  const remaining = monthlyBudget - spent - commitments;
+function getAvailableThisMonth() {
+  return monthlyBudget + rolloverAmount;
+}
 
-  budgetTotal.textContent = formatMoney(monthlyBudget);
+function getActualSpentThisMonth() {
+  return calculateSpentForMonth(getCurrentMonthKey());
+}
+
+function getRemainingThisMonth() {
+  return getAvailableThisMonth() - getActualSpentThisMonth() - calculateRecurringCommitments();
+}
+
+function getLargestExpenseThisMonth() {
+  const currentMonthExpenses = getExpensesForMonth(getCurrentMonthKey());
+  if (currentMonthExpenses.length === 0) return 0;
+  return Math.max(...currentMonthExpenses.map((expense) => Number(expense.amount)));
+}
+
+function rolloverIfNeeded() {
+  const currentMonth = getCurrentMonthKey();
+
+  if (lastActiveMonth === currentMonth) {
+    return;
+  }
+
+  let workingMonth = lastActiveMonth;
+  let workingRollover = rolloverAmount;
+
+  while (workingMonth !== currentMonth) {
+    const previousMonthSpent = calculateSpentForMonth(workingMonth);
+    const previousMonthCommitments = calculateRecurringCommitments();
+    const previousMonthAvailable = monthlyBudget + workingRollover;
+    const previousMonthRemaining = previousMonthAvailable - previousMonthSpent - previousMonthCommitments;
+
+    workingRollover = previousMonthRemaining > 0 ? previousMonthRemaining : 0;
+    workingMonth = getMonthKey(new Date(`${workingMonth}-01T00:00:00`));
+    const [year, month] = workingMonth.split("-").map(Number);
+    workingMonth = getMonthKey(new Date(year, month, 1));
+  }
+
+  rolloverAmount = workingRollover;
+  lastActiveMonth = currentMonth;
+  saveData();
+}
+
+function updateMonthLabel() {
+  monthLabel.textContent = getReadableMonth(new Date());
+}
+
+function updateSummary() {
+  const baseBudget = monthlyBudget;
+  const rollover = rolloverAmount;
+  const available = getAvailableThisMonth();
+  const spent = getActualSpentThisMonth();
+  const commitments = calculateRecurringCommitments();
+  const remaining = getRemainingThisMonth();
+
+  budgetTotal.textContent = formatMoney(baseBudget);
+  rolloverTotal.textContent = formatMoney(rollover);
   spentTotal.textContent = formatMoney(spent);
+  committedTotal.textContent = formatMoney(commitments);
   remainingTotal.textContent = formatMoney(remaining);
+  availableTotal.textContent = `$${formatMoney(available)}`;
+
+  transactionCount.textContent = getExpensesForMonth(getCurrentMonthKey()).length;
   recurringCount.textContent = recurringBills.length;
+  largestExpense.textContent = `$${formatMoney(getLargestExpenseThisMonth())}`;
+
+  const denominator = available <= 0 ? 1 : available;
+  const usedPercent = Math.min(((spent + commitments) / denominator) * 100, 100);
+  progressFill.style.width = `${Math.max(0, usedPercent)}%`;
+  progressText.textContent = `${formatMoney(usedPercent)}% used`;
+
+  progressFill.classList.remove("progress-good", "progress-warning", "progress-danger");
+  statusBadge.classList.remove("status-good", "status-warning", "status-danger");
+
+  if (remaining > available * 0.35) {
+    progressFill.classList.add("progress-good");
+    statusBadge.classList.add("status-good");
+    statusBadge.textContent = "Healthy";
+  } else if (remaining > 0) {
+    progressFill.classList.add("progress-warning");
+    statusBadge.classList.add("status-warning");
+    statusBadge.textContent = "Tight";
+  } else {
+    progressFill.classList.add("progress-danger");
+    statusBadge.classList.add("status-danger");
+    statusBadge.textContent = "Over Budget";
+  }
 }
 
 function createEmptyMessage(text) {
@@ -89,12 +195,12 @@ function createEmptyMessage(text) {
 function renderExpenses() {
   expenseList.innerHTML = "";
 
-  const currentMonthExpenses = [...getCurrentMonthExpenses()].sort(
+  const currentMonthExpenses = [...getExpensesForMonth(getCurrentMonthKey())].sort(
     (a, b) => new Date(`${b.date}T00:00:00`) - new Date(`${a.date}T00:00:00`)
   );
 
   if (currentMonthExpenses.length === 0) {
-    expenseList.appendChild(createEmptyMessage("No expenses added yet."));
+    expenseList.appendChild(createEmptyMessage("No expenses added for this month yet."));
     return;
   }
 
@@ -110,7 +216,7 @@ function renderExpenses() {
 
     const meta = document.createElement("div");
     meta.className = "item-meta";
-    meta.textContent = `${expense.category} • ${expense.date}${expense.isRecurring ? " • Recurring bill" : ""}`;
+    meta.textContent = `${expense.category} • ${expense.date}${expense.isRecurring ? " • Auto-posted recurring bill" : ""}`;
 
     main.appendChild(title);
     main.appendChild(meta);
@@ -162,7 +268,7 @@ function renderRecurringBills() {
 
     const meta = document.createElement("div");
     meta.className = "item-meta";
-    meta.textContent = `${bill.category} • Due every month on day ${bill.day} • Counts against remaining immediately`;
+    meta.textContent = `${bill.category} • Due every month on day ${bill.day} • Counts toward remaining immediately`;
 
     main.appendChild(title);
     main.appendChild(meta);
@@ -171,7 +277,7 @@ function renderRecurringBills() {
     right.className = "item-right";
 
     const amount = document.createElement("span");
-    amount.className = "amount-pill";
+    amount.className = "commitment-pill";
     amount.textContent = `$${formatMoney(bill.amount)}`;
 
     const deleteBtn = document.createElement("button");
@@ -194,7 +300,7 @@ function renderRecurringBills() {
 
 function getCategoryTotals() {
   const totals = {};
-  const currentMonthExpenses = getCurrentMonthExpenses();
+  const currentMonthExpenses = getExpensesForMonth(getCurrentMonthKey());
 
   currentMonthExpenses.forEach((expense) => {
     const category = expense.category || "Other";
@@ -207,27 +313,67 @@ function getCategoryTotals() {
 function renderChart() {
   const categoryTotals = getCategoryTotals();
   const labels = Object.keys(categoryTotals);
-  const data = Object.values(categoryTotals);
-
+  const values = Object.values(categoryTotals);
   const ctx = document.getElementById("categoryChart").getContext("2d");
 
   if (categoryChart) {
     categoryChart.destroy();
   }
 
+  if (labels.length === 0) {
+    categoryChart = new Chart(ctx, {
+      type: "doughnut",
+      data: {
+        labels: ["No Expenses Yet"],
+        datasets: [
+          {
+            data: [1],
+            backgroundColor: ["rgba(203, 213, 225, 0.85)"],
+            borderWidth: 0
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: "bottom"
+          }
+        },
+        cutout: "68%"
+      }
+    });
+    return;
+  }
+
   categoryChart = new Chart(ctx, {
     type: "doughnut",
     data: {
-      labels: labels.length ? labels : ["No Data"],
+      labels,
       datasets: [
         {
-          label: "Spending by Category",
-          data: data.length ? data : [1]
+          data: values,
+          backgroundColor: [
+            "#2563eb",
+            "#7c3aed",
+            "#14b8a6",
+            "#f59e0b",
+            "#ef4444",
+            "#06b6d4",
+            "#22c55e",
+            "#8b5cf6",
+            "#f97316",
+            "#e11d48"
+          ],
+          borderWidth: 0,
+          hoverOffset: 8
         }
       ]
     },
     options: {
       responsive: true,
+      maintainAspectRatio: false,
       plugins: {
         legend: {
           position: "bottom"
@@ -240,27 +386,24 @@ function renderChart() {
 
 function processRecurringBills() {
   const today = new Date();
+  const currentMonthKey = getCurrentMonthKey();
   const currentYear = today.getFullYear();
   const currentMonth = today.getMonth();
 
   recurringBills.forEach((bill) => {
     const alreadyPostedThisMonth = expenses.some((expense) => {
-      if (!expense.isRecurring || expense.sourceRecurringId !== bill.id) return false;
-
-      const expenseDate = new Date(`${expense.date}T00:00:00`);
       return (
-        expenseDate.getFullYear() === currentYear &&
-        expenseDate.getMonth() === currentMonth
+        expense.isRecurring &&
+        expense.sourceRecurringId === bill.id &&
+        isExpenseInMonth(expense, currentMonthKey)
       );
     });
 
     if (!alreadyPostedThisMonth && today.getDate() >= Number(bill.day)) {
-      const safeDay = Math.min(
-        Number(bill.day),
-        new Date(currentYear, currentMonth + 1, 0).getDate()
-      );
+      const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+      const safeDay = Math.min(Number(bill.day), lastDayOfMonth);
 
-      const expenseDateString = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(safeDay).padStart(2, "0")}`;
+      const expenseDateString = `${currentMonthKey}-${String(safeDay).padStart(2, "0")}`;
 
       expenses.push({
         id: crypto.randomUUID(),
@@ -278,6 +421,7 @@ function processRecurringBills() {
 }
 
 function renderAll() {
+  updateMonthLabel();
   updateSummary();
   renderExpenses();
   renderRecurringBills();
@@ -326,15 +470,18 @@ recurringForm.addEventListener("submit", (e) => {
 });
 
 clearAllBtn.addEventListener("click", () => {
-  const confirmed = confirm("Are you sure you want to delete all budgets, expenses, and recurring bills?");
+  const confirmed = confirm("Are you sure you want to delete all budgets, expenses, recurring bills, and rollover data?");
   if (!confirmed) return;
 
   monthlyBudget = 0;
   expenses = [];
   recurringBills = [];
+  rolloverAmount = 0;
+  lastActiveMonth = getCurrentMonthKey();
   saveData();
   renderAll();
 });
 
+rolloverIfNeeded();
 processRecurringBills();
 renderAll();
