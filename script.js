@@ -70,12 +70,6 @@ function getCurrentMonthKey() {
   return getMonthKey(new Date());
 }
 
-function getPreviousMonthKey(monthKey) {
-  const [year, month] = monthKey.split("-").map(Number);
-  const date = new Date(year, month - 2, 1);
-  return getMonthKey(date);
-}
-
 function isExpenseInMonth(expense, monthKey) {
   return typeof expense.date === "string" && expense.date.startsWith(monthKey);
 }
@@ -90,7 +84,24 @@ function calculateSpentForMonth(monthKey) {
   }, 0);
 }
 
-function calculateRecurringCommitments() {
+function hasRecurringBillPostedThisMonth(billId, monthKey) {
+  return expenses.some((expense) => {
+    return (
+      expense.isRecurring &&
+      expense.sourceRecurringId === billId &&
+      isExpenseInMonth(expense, monthKey)
+    );
+  });
+}
+
+function calculateOutstandingRecurringCommitments(monthKey) {
+  return recurringBills.reduce((sum, bill) => {
+    const alreadyPosted = hasRecurringBillPostedThisMonth(bill.id, monthKey);
+    return alreadyPosted ? sum : sum + Number(bill.amount);
+  }, 0);
+}
+
+function calculateAllRecurringBillsTotal() {
   return recurringBills.reduce((sum, bill) => sum + Number(bill.amount), 0);
 }
 
@@ -103,7 +114,8 @@ function getActualSpentThisMonth() {
 }
 
 function getRemainingThisMonth() {
-  return getAvailableThisMonth() - getActualSpentThisMonth() - calculateRecurringCommitments();
+  const monthKey = getCurrentMonthKey();
+  return getAvailableThisMonth() - getActualSpentThisMonth() - calculateOutstandingRecurringCommitments(monthKey);
 }
 
 function getLargestExpenseThisMonth() {
@@ -124,12 +136,12 @@ function rolloverIfNeeded() {
 
   while (workingMonth !== currentMonth) {
     const previousMonthSpent = calculateSpentForMonth(workingMonth);
-    const previousMonthCommitments = calculateRecurringCommitments();
+    const previousMonthCommitments = calculateOutstandingRecurringCommitments(workingMonth);
     const previousMonthAvailable = monthlyBudget + workingRollover;
     const previousMonthRemaining = previousMonthAvailable - previousMonthSpent - previousMonthCommitments;
 
     workingRollover = previousMonthRemaining > 0 ? previousMonthRemaining : 0;
-    workingMonth = getMonthKey(new Date(`${workingMonth}-01T00:00:00`));
+
     const [year, month] = workingMonth.split("-").map(Number);
     workingMonth = getMonthKey(new Date(year, month, 1));
   }
@@ -144,11 +156,12 @@ function updateMonthLabel() {
 }
 
 function updateSummary() {
+  const currentMonthKey = getCurrentMonthKey();
   const baseBudget = monthlyBudget;
   const rollover = rolloverAmount;
   const available = getAvailableThisMonth();
   const spent = getActualSpentThisMonth();
-  const commitments = calculateRecurringCommitments();
+  const commitments = calculateOutstandingRecurringCommitments(currentMonthKey);
   const remaining = getRemainingThisMonth();
 
   budgetTotal.textContent = formatMoney(baseBudget);
@@ -158,7 +171,7 @@ function updateSummary() {
   remainingTotal.textContent = formatMoney(remaining);
   availableTotal.textContent = `$${formatMoney(available)}`;
 
-  transactionCount.textContent = getExpensesForMonth(getCurrentMonthKey()).length;
+  transactionCount.textContent = getExpensesForMonth(currentMonthKey).length;
   recurringCount.textContent = recurringBills.length;
   largestExpense.textContent = `$${formatMoney(getLargestExpenseThisMonth())}`;
 
@@ -254,6 +267,7 @@ function renderRecurringBills() {
     return;
   }
 
+  const currentMonthKey = getCurrentMonthKey();
   const sortedBills = [...recurringBills].sort((a, b) => a.day - b.day);
 
   sortedBills.forEach((bill) => {
@@ -266,9 +280,13 @@ function renderRecurringBills() {
     title.className = "item-title";
     title.textContent = bill.name;
 
+    const alreadyPosted = hasRecurringBillPostedThisMonth(bill.id, currentMonthKey);
+
     const meta = document.createElement("div");
     meta.className = "item-meta";
-    meta.textContent = `${bill.category} • Due every month on day ${bill.day} • Counts toward remaining immediately`;
+    meta.textContent = alreadyPosted
+      ? `${bill.category} • Due every month on day ${bill.day} • Already posted this month`
+      : `${bill.category} • Due every month on day ${bill.day} • Counts toward remaining immediately`;
 
     main.appendChild(title);
     main.appendChild(meta);
@@ -391,13 +409,7 @@ function processRecurringBills() {
   const currentMonth = today.getMonth();
 
   recurringBills.forEach((bill) => {
-    const alreadyPostedThisMonth = expenses.some((expense) => {
-      return (
-        expense.isRecurring &&
-        expense.sourceRecurringId === bill.id &&
-        isExpenseInMonth(expense, currentMonthKey)
-      );
-    });
+    const alreadyPostedThisMonth = hasRecurringBillPostedThisMonth(bill.id, currentMonthKey);
 
     if (!alreadyPostedThisMonth && today.getDate() >= Number(bill.day)) {
       const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
