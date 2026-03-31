@@ -393,6 +393,26 @@ function getDailyTrendData() {
 
   return { labels, values };
 }
+const centerTextPlugin = {
+  id: "centerText",
+  beforeDraw(chart) {
+    const { width, height, ctx } = chart;
+    ctx.save();
+
+    const total = chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+
+    ctx.font = "600 14px Inter";
+    ctx.fillStyle = "#64748b";
+    ctx.textAlign = "center";
+    ctx.fillText("Total Spent", width / 2, height / 2 - 8);
+
+    ctx.font = "700 18px Inter";
+    ctx.fillStyle = "#0f172a";
+    ctx.fillText(`$${total.toFixed(0)}`, width / 2, height / 2 + 14);
+
+    ctx.restore();
+  }
+};
 function renderChart() {
   const categoryTotals = getCategoryTotals();
   const labels = Object.keys(categoryTotals);
@@ -417,6 +437,14 @@ function renderChart() {
         ]
       },
       options: {
+        plugins: {
+  legend: {
+    position: "bottom"
+  },
+  tooltip: {
+    enabled: true
+  }
+}
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
@@ -428,6 +456,7 @@ function renderChart() {
       }
     });
     return;
+plugins: [centerTextPlugin],
   }
 
   categoryChart = new Chart(ctx, {
