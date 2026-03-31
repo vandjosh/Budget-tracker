@@ -41,6 +41,7 @@ let lastActiveMonth = localStorage.getItem("lastActiveMonth") || getMonthKey(new
 
 let categoryChart = null;
 let editingRecurringBillId = null;
+let trendChart = null;
 
 function saveData() {
   localStorage.setItem("monthlyBudget", monthlyBudget);
@@ -367,7 +368,31 @@ function getCategoryTotals() {
 
   return totals;
 }
+function getCurrentMonthExpensesSorted() {
+  return [...getExpensesForMonth(getCurrentMonthKey())].sort(
+    (a, b) => new Date(`${a.date}T00:00:00`) - new Date(`${b.date}T00:00:00`)
+  );
+}
 
+function getDailyTrendData() {
+  const currentMonthExpenses = getCurrentMonthExpensesSorted();
+  const dailyTotals = {};
+
+  currentMonthExpenses.forEach((expense) => {
+    const day = expense.date.slice(-2);
+    dailyTotals[day] = (dailyTotals[day] || 0) + Number(expense.amount);
+  });
+
+  const labels = Object.keys(dailyTotals).sort((a, b) => Number(a) - Number(b));
+  let runningTotal = 0;
+
+  const values = labels.map((day) => {
+    runningTotal += dailyTotals[day];
+    return runningTotal;
+  });
+
+  return { labels, values };
+}
 function renderChart() {
   const categoryTotals = getCategoryTotals();
   const labels = Object.keys(categoryTotals);
