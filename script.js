@@ -40,6 +40,7 @@ let rolloverAmount = Number(localStorage.getItem("rolloverAmount")) || 0;
 let lastActiveMonth = localStorage.getItem("lastActiveMonth") || getMonthKey(new Date());
 
 let categoryChart = null;
+let editingRecurringBillId = null;
 
 function saveData() {
   localStorage.setItem("monthlyBudget", monthlyBudget);
@@ -99,10 +100,6 @@ function calculateOutstandingRecurringCommitments(monthKey) {
     const alreadyPosted = hasRecurringBillPostedThisMonth(bill.id, monthKey);
     return alreadyPosted ? sum : sum + Number(bill.amount);
   }, 0);
-}
-
-function calculateAllRecurringBillsTotal() {
-  return recurringBills.reduce((sum, bill) => sum + Number(bill.amount), 0);
 }
 
 function getAvailableThisMonth() {
@@ -259,6 +256,29 @@ function renderExpenses() {
   });
 }
 
+function fillRecurringFormForEdit(bill) {
+  recurringName.value = bill.name;
+  recurringAmount.value = bill.amount;
+  recurringCategory.value = bill.category;
+  recurringDay.value = bill.day;
+  editingRecurringBillId = bill.id;
+
+  const submitButton = recurringForm.querySelector("button[type='submit']");
+  if (submitButton) {
+    submitButton.textContent = "Save Changes";
+  }
+}
+
+function resetRecurringForm() {
+  recurringForm.reset();
+  editingRecurringBillId = null;
+
+  const submitButton = recurringForm.querySelector("button[type='submit']");
+  if (submitButton) {
+    submitButton.textContent = "Add Recurring Bill";
+  }
+}
+
 function renderRecurringBills() {
   recurringList.innerHTML = "";
 
@@ -298,16 +318,36 @@ function renderRecurringBills() {
     amount.className = "commitment-pill";
     amount.textContent = `$${formatMoney(bill.amount)}`;
 
+    const editBtn = document.createElement("button");
+    editBtn.className = "small-btn";
+    editBtn.textContent = "Edit";
+    editBtn.addEventListener("click", () => {
+      fillRecurringFormForEdit(bill);
+      recurringForm.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+
     const deleteBtn = document.createElement("button");
     deleteBtn.className = "small-btn delete-btn";
     deleteBtn.textContent = "Delete";
     deleteBtn.addEventListener("click", () => {
+      const wasEditingThisBill = editingRecurringBillId === bill.id;
+
       recurringBills = recurringBills.filter((item) => item.id !== bill.id);
+
+      expenses = expenses.filter((expense) => {
+        return !(expense.isRecurring && expense.sourceRecurringId === bill.id);
+      });
+
+      if (wasEditingThisBill) {
+        resetRecurringForm();
+      }
+
       saveData();
       renderAll();
     });
 
     right.appendChild(amount);
+    right.appendChild(editBtn);
     right.appendChild(deleteBtn);
 
     li.appendChild(main);
@@ -468,17 +508,46 @@ expenseForm.addEventListener("submit", (e) => {
 recurringForm.addEventListener("submit", (e) => {
   e.preventDefault();
 
-  recurringBills.push({
-    id: crypto.randomUUID(),
+  const formData = {
     name: recurringName.value.trim(),
     amount: Number(recurringAmount.value),
     category: recurringCategory.value,
     day: Number(recurringDay.value)
-  });
+  };
+
+  if (editingRecurringBillId) {
+    recurringBills = recurringBills.map((bill) => {
+      if (bill.id !== editingRecurringBillId) return bill;
+      return {
+        ...bill,
+        ...formData
+      };
+    });
+
+    expenses = expenses.map((expense) => {
+      if (!(expense.isRecurring && expense.sourceRecurringId === editingRecurringBillId)) {
+        return expense;
+      }
+
+      return {
+        ...expense,
+        name: formData.name,
+        amount: formData.amount,
+        category: formData.category
+      };
+    });
+
+    resetRecurringForm();
+  } else {
+    recurringBills.push({
+      id: crypto.randomUUID(),
+      ...formData
+    });
+    resetRecurringForm();
+  }
 
   saveData();
   renderAll();
-  recurringForm.reset();
 });
 
 clearAllBtn.addEventListener("click", () => {
@@ -490,10 +559,13 @@ clearAllBtn.addEventListener("click", () => {
   recurringBills = [];
   rolloverAmount = 0;
   lastActiveMonth = getCurrentMonthKey();
+  editingRecurringBillId = null;
   saveData();
   renderAll();
+  resetRecurringForm();
 });
 
 rolloverIfNeeded();
 processRecurringBills();
 renderAll();
+resetRecurringForm();
