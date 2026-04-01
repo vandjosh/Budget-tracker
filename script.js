@@ -442,7 +442,7 @@ function renderChart() {
     position: "bottom"
   },
   tooltip: {
-    enabled: true
+    enabled: true,
   }
 }
         responsive: true,
